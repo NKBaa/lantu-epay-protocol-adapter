@@ -18,8 +18,10 @@ const config = {
 };
 
 const HTTP_TIMEOUT_MS = 15000;
+const MAX_EVENTS = 100;
 
 const orders = new Map();
+const events = [];
 
 app.all("/submit.php", async (req, res) => {
   try {
@@ -101,20 +103,28 @@ app.get("/checkout/status", (req, res) => {
   });
 });
 
+app.get("/debug/events", (req, res) => {
+  res.json({ code: 1, events: events.slice().reverse() });
+});
+
 app.post("/lantu/notify", async (req, res) => {
   const input = collectParams(req);
   try {
+    addEvent("lantu_notify_received", { out_trade_no: input.out_trade_no, mch_id: input.mch_id, code: input.code });
     assertRequired(input, ["code", "timestamp", "mch_id", "order_no", "out_trade_no", "pay_no", "total_fee", "sign"]);
     if (input.mch_id !== config.lantuMchId) {
+      addEvent("lantu_notify_rejected", { reason: "mch_id", out_trade_no: input.out_trade_no, mch_id: input.mch_id });
       return res.status(400).type("text/plain").send("FAIL");
     }
     if (!verifyLantuSign(input)) {
+      addEvent("lantu_notify_rejected", { reason: "sign", out_trade_no: input.out_trade_no });
       return res.status(400).type("text/plain").send("FAIL");
     }
 
     const order = orders.get(input.out_trade_no) || decodeAttach(input.attach) || {};
     const notifyUrl = order.notifyUrl;
     if (!notifyUrl) {
+      addEvent("lantu_notify_rejected", { reason: "notify_url", out_trade_no: input.out_trade_no });
       return res.status(400).type("text/plain").send("FAIL");
     }
 
@@ -128,15 +138,19 @@ app.post("/lantu/notify", async (req, res) => {
       lantuNotify: input,
     };
     orders.set(input.out_trade_no, nextOrder);
+    addEvent("order_marked_paid", { out_trade_no: input.out_trade_no, paid });
 
     const epayNotify = buildEpayNotify(input, nextOrder, paid);
-    const downstream = await postForm(notifyUrl, epayNotify, false);
-    if (String(downstream).trim().toLowerCase() !== "success") {
+    const downstream = await notifyNewapi(notifyUrl, epayNotify);
+    if (!downstream.ok) {
+      addEvent("newapi_notify_failed", { out_trade_no: input.out_trade_no, post: downstream.post, get: downstream.get });
       return res.status(502).type("text/plain").send("FAIL");
     }
+    addEvent("newapi_notify_success", { out_trade_no: input.out_trade_no, method: downstream.method });
 
     return res.type("text/plain").send("SUCCESS");
-  } catch (_error) {
+  } catch (error) {
+    addEvent("lantu_notify_error", { out_trade_no: input.out_trade_no, message: error.message });
     return res.status(400).type("text/plain").send("FAIL");
   }
 });
@@ -324,6 +338,60 @@ async function postForm(url, params, expectJson = true) {
   }
 }
 
+async function getText(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { method: "GET", signal: controller.signal });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`http ${response.status}: ${text}`);
+    }
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function notifyNewapi(notifyUrl, payload) {
+  const result = { ok: false, method: "", post: "", get: "" };
+
+  try {
+    const text = await postForm(notifyUrl, payload, false);
+    result.post = truncateText(text);
+    if (isSuccessResponse(text)) {
+      result.ok = true;
+      result.method = "POST";
+      return result;
+    }
+  } catch (error) {
+    result.post = error.message;
+  }
+
+  try {
+    const text = await getText(appendQuery(notifyUrl, payload));
+    result.get = truncateText(text);
+    if (isSuccessResponse(text)) {
+      result.ok = true;
+      result.method = "GET";
+      return result;
+    }
+  } catch (error) {
+    result.get = error.message;
+  }
+
+  return result;
+}
+
+function isSuccessResponse(text) {
+  return String(text).trim().toLowerCase() === "success";
+}
+
+function truncateText(text) {
+  const value = String(text || "").trim();
+  return value.length > 200 ? `${value.slice(0, 200)}...` : value;
+}
+
 function extractPaymentUrls(data) {
   if (typeof data === "string") return { payUrl: data, imageUrl: data };
   if (!data || typeof data !== "object") return { payUrl: "", imageUrl: "" };
@@ -352,6 +420,13 @@ function appendQuery(url, params) {
     target.searchParams.set(key, value);
   }
   return target.toString();
+}
+
+function addEvent(type, data = {}) {
+  events.push({ type, data, time: new Date().toISOString() });
+  while (events.length > MAX_EVENTS) {
+    events.shift();
+  }
 }
 
 function wantsJson(req) {
