@@ -363,7 +363,6 @@ function buildReturnUrl(order) {
 function renderCheckoutPage(order) {
   const statusUrl = `${config.publicBaseUrl}/checkout/status?out_trade_no=${encodeURIComponent(order.outTradeNo)}&token=${order.statusToken}`;
   const imageUrl = order.payment.imageUrl || order.payment.payUrl;
-  const payUrl = order.payment.payUrl || imageUrl;
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -371,7 +370,7 @@ function renderCheckoutPage(order) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>支付收银台</title>
   <style>
-    body{margin:0;background:#f6f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(15,23,42,.12);padding:28px;text-align:center}.title{font-size:22px;font-weight:700;margin:0 0 8px}.sub{color:#64748b;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#64748b}.status{margin-top:16px;color:#2563eb;font-weight:600}.hint{margin-top:14px;color:#94a3b8;font-size:13px}.btn{display:inline-block;margin-top:14px;color:#fff;background:#2563eb;text-decoration:none;border-radius:10px;padding:10px 14px}
+    body{margin:0;background:#f6f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(15,23,42,.12);padding:28px;text-align:center}.title{font-size:22px;font-weight:700;margin:0 0 8px}.sub{color:#64748b;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#64748b}.status{margin-top:16px;color:#2563eb;font-weight:600}.hint{margin-top:14px;color:#94a3b8;font-size:13px}
   </style>
 </head>
 <body>
@@ -384,7 +383,6 @@ function renderCheckoutPage(order) {
       <div class="row"><span>金额</span><strong>${escapeHtml(order.money)} 元</strong></div>
       <div class="row"><span>订单号</span><strong>${escapeHtml(order.outTradeNo)}</strong></div>
     </div>
-    ${payUrl ? `<a class="btn" href="${escapeHtml(payUrl)}" target="_blank" rel="noreferrer">打不开二维码？点此继续支付</a>` : ""}
     <div id="status" class="status">等待支付结果...</div>
     <div class="hint">请不要关闭此页面</div>
   </main></div>
