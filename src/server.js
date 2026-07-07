@@ -119,20 +119,18 @@ app.post("/lantu/notify", async (req, res) => {
     }
 
     const paid = input.code === "0";
-    const epayNotify = buildEpayNotify(input, order, paid);
-    const downstream = await postForm(notifyUrl, epayNotify, false);
-    if (String(downstream).trim().toLowerCase() !== "success") {
-      return res.status(502).type("text/plain").send("FAIL");
-    }
-
-    orders.set(input.out_trade_no, {
+    const nextOrder = {
       ...order,
       outTradeNo: input.out_trade_no,
       tradeNo: input.order_no,
       status: paid ? 1 : 0,
       paidAt: input.success_time || new Date().toISOString(),
       lantuNotify: input,
-    });
+    };
+    orders.set(input.out_trade_no, nextOrder);
+
+    const epayNotify = buildEpayNotify(input, nextOrder, paid);
+    notifyNewapi(notifyUrl, epayNotify);
 
     return res.type("text/plain").send("SUCCESS");
   } catch (_error) {
@@ -368,7 +366,7 @@ function buildReturnUrl(order) {
 }
 
 function renderCheckoutPage(order) {
-  const statusUrl = `${config.publicBaseUrl}/checkout/status?out_trade_no=${encodeURIComponent(order.outTradeNo)}&token=${order.statusToken}`;
+  const statusUrl = `/checkout/status?out_trade_no=${encodeURIComponent(order.outTradeNo)}&token=${order.statusToken}`;
   const imageUrl = order.payment.imageUrl || order.payment.payUrl;
   return `<!doctype html>
 <html lang="zh-CN">
@@ -411,6 +409,14 @@ function renderCheckoutPage(order) {
   </script>
 </body>
 </html>`;
+}
+
+async function notifyNewapi(notifyUrl, payload) {
+  try {
+    await postForm(notifyUrl, payload, false);
+  } catch (error) {
+    console.error(`newapi notify failed: ${error.message}`);
+  }
 }
 
 function escapeHtml(value) {
