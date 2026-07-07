@@ -1,6 +1,6 @@
 # 蓝兔支付 ePay 协议转换层
 
-这个服务对 `newapi` 暴露易支付兼容接口，对内调用蓝兔支付接口。`newapi` 侧商户号和商户密钥直接填写蓝兔支付的商户号和密钥，只需要把易支付网关地址替换成转换层地址。
+这个服务对 `newapi` 暴露易支付兼容接口，对内调用蓝兔支付接口。`newapi` 侧使用自定义适配器商户号和密钥连接转换层，转换层内部再使用真实蓝兔商户号和密钥请求蓝兔支付。
 
 ## 支持接口
 
@@ -24,7 +24,10 @@ docker compose up -d --build
 environment:
   PORT: "18080"
   PUBLIC_BASE_URL: "https://pay-adapter.example.com"
+  ADAPTER_PID: "adapter_1000"
+  ADAPTER_KEY: "change_me_adapter_key"
   LANTU_API_BASE: "https://api.ltzf.cn"
+  LANTU_MCH_ID: "1230000109"
   LANTU_KEY: "change_me_lantu_key"
 ```
 
@@ -65,7 +68,7 @@ docker compose down
 ```bash
 cd lantu-epay-protocol-adapter
 docker build -t lantu-epay-protocol-adapter:latest .
-docker run -d --name lantu-epay-protocol-adapter --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_API_BASE=https://api.ltzf.cn -e LANTU_KEY=change_me_lantu_key lantu-epay-protocol-adapter:latest
+docker run -d --name lantu-epay-protocol-adapter --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e ADAPTER_PID=adapter_1000 -e ADAPTER_KEY=change_me_adapter_key -e LANTU_API_BASE=https://api.ltzf.cn -e LANTU_MCH_ID=1230000109 -e LANTU_KEY=change_me_lantu_key lantu-epay-protocol-adapter:latest
 ```
 
 ## GitHub 镜像构建
@@ -95,10 +98,10 @@ npm start
 ## newapi 配置
 
 - 支付类型选择易支付/ePay。
-- 商户号填写蓝兔支付商户号，转换层会把易支付 `pid` 直接透传成蓝兔 `mch_id`。
-- 商户密钥填写蓝兔支付密钥，并且 Compose `environment` 中的 `LANTU_KEY` 也要填同一个值，用于转换层验签和生成蓝兔签名。
+- 商户号填写 Compose `environment` 中的 `ADAPTER_PID`。
+- 商户密钥填写 Compose `environment` 中的 `ADAPTER_KEY`。
 - 支付网关填写转换层公网地址，例如 `https://pay-adapter.example.com/`。
-- 除网关地址外，不需要额外维护一套 ePay 商户号或密钥。
+- 真实蓝兔商户号和密钥只写在转换层的 `LANTU_MCH_ID` 和 `LANTU_KEY`。
 - 如果 Docker 前面有 Nginx/Caddy，反代到 `127.0.0.1:18080`，或你在 `PORT` 中配置的端口。
 
 ## 回调地址
@@ -116,8 +119,8 @@ https://pay-adapter.example.com/lantu/notify
 | `out_trade_no` | `out_trade_no` |
 | `money` | `total_fee` |
 | `name` | `body` |
-| `type=wxpay` | `/api/wxpay/{mode}` |
-| `type=alipay` | `/api/alipay/{mode}` |
+| `type=wxpay` | `/api/wxpay/native` |
+| `type=alipay` | `/api/alipay/native` |
 | `notify_url` | 写入 `attach`，蓝兔回调转换层后再通知 `newapi` |
 | `return_url` | 蓝兔 `return_url`，不可用时由 `/return` 兜底 |
 

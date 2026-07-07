@@ -10,7 +10,10 @@ app.use(express.json());
 const config = {
   port: numberEnv("PORT", 18080),
   publicBaseUrl: requiredEnv("PUBLIC_BASE_URL").replace(/\/$/, ""),
+  adapterPid: requiredEnv("ADAPTER_PID"),
+  adapterKey: requiredEnv("ADAPTER_KEY"),
   lantuApiBase: env("LANTU_API_BASE", "https://api.ltzf.cn").replace(/\/$/, ""),
+  lantuMchId: requiredEnv("LANTU_MCH_ID"),
   lantuKey: requiredEnv("LANTU_KEY"),
 };
 
@@ -23,6 +26,9 @@ app.all("/submit.php", async (req, res) => {
     const input = collectParams(req);
     assertRequired(input, ["pid", "type", "out_trade_no", "notify_url", "return_url", "name", "money", "sign"]);
 
+    if (input.pid !== config.adapterPid) {
+      return sendEpayError(res, "pid error");
+    }
     if (!verifyEpaySign(input)) {
       return sendEpayError(res, "sign error");
     }
@@ -39,7 +45,6 @@ app.all("/submit.php", async (req, res) => {
     const statusToken = crypto.randomBytes(16).toString("hex");
     const order = {
       outTradeNo: input.out_trade_no,
-      pid: input.pid,
       tradeNo: "",
       type: input.type,
       name: input.name,
@@ -100,6 +105,9 @@ app.post("/lantu/notify", async (req, res) => {
   const input = collectParams(req);
   try {
     assertRequired(input, ["code", "timestamp", "mch_id", "order_no", "out_trade_no", "pay_no", "total_fee", "sign"]);
+    if (input.mch_id !== config.lantuMchId) {
+      return res.status(400).type("text/plain").send("FAIL");
+    }
     if (!verifyLantuSign(input)) {
       return res.status(400).type("text/plain").send("FAIL");
     }
@@ -120,7 +128,6 @@ app.post("/lantu/notify", async (req, res) => {
     orders.set(input.out_trade_no, {
       ...order,
       outTradeNo: input.out_trade_no,
-      pid: order.pid || input.mch_id,
       tradeNo: input.order_no,
       status: paid ? 1 : 0,
       paidAt: input.success_time || new Date().toISOString(),
@@ -150,7 +157,7 @@ app.all("/api.php", (req, res) => {
   if (input.act !== "order") {
     return res.json({ code: -1, msg: "unsupported act" });
   }
-  if (!verifyEpaySign(input)) {
+  if (input.pid !== config.adapterPid || !verifyEpaySign(input)) {
     return res.json({ code: -1, msg: "sign error" });
   }
 
@@ -223,7 +230,7 @@ function epaySign(params) {
     .sort(([a], [b]) => asciiCompare(a, b))
     .map(([name, value]) => `${name}=${value}`)
     .join("&");
-  return crypto.createHash("md5").update(`${source}${config.lantuKey}`, "utf8").digest("hex").toLowerCase();
+  return crypto.createHash("md5").update(`${source}${config.adapterKey}`, "utf8").digest("hex").toLowerCase();
 }
 
 function verifyEpaySign(params) {
@@ -262,14 +269,14 @@ function mapChannel(type) {
 
 function buildLantuCreatePayload(input, channel) {
   const payload = {
-    mch_id: input.pid,
+    mch_id: config.lantuMchId,
     out_trade_no: input.out_trade_no,
     total_fee: input.money,
     body: input.name,
     timestamp: Math.floor(Date.now() / 1000).toString(),
     notify_url: `${config.publicBaseUrl}/lantu/notify`,
     return_url: input.return_url || `${config.publicBaseUrl}/return`,
-    attach: encodeAttach({ pid: input.pid, notifyUrl: input.notify_url, returnUrl: input.return_url, type: input.type, name: input.name, money: input.money }),
+    attach: encodeAttach({ notifyUrl: input.notify_url, returnUrl: input.return_url, type: input.type, name: input.name, money: input.money }),
   };
 
   payload.sign = sign(pick(payload, ["mch_id", "out_trade_no", "total_fee", "body", "timestamp", "notify_url"]), config.lantuKey);
@@ -278,7 +285,7 @@ function buildLantuCreatePayload(input, channel) {
 
 function buildEpayNotify(input, order, paid) {
   const payload = {
-    pid: order.pid || input.mch_id,
+    pid: config.adapterPid,
     trade_no: input.order_no || order.tradeNo || order.outTradeNo || input.out_trade_no,
     out_trade_no: input.out_trade_no || order.outTradeNo,
     type: order.type || lantuChannelToEpay(input.pay_channel),
@@ -368,22 +375,23 @@ function renderCheckoutPage(order) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>支付收银台</title>
+  <title>微信支付收银台</title>
   <style>
-    body{margin:0;background:#f6f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(15,23,42,.12);padding:28px;text-align:center}.title{font-size:22px;font-weight:700;margin:0 0 8px}.sub{color:#64748b;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#64748b}.status{margin-top:16px;color:#2563eb;font-weight:600}.hint{margin-top:14px;color:#94a3b8;font-size:13px}
+    body{margin:0;background:linear-gradient(180deg,#e9fff2 0%,#f6f8f7 42%,#f6f8f7 100%);color:#1f2d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:22px;box-shadow:0 18px 60px rgba(7,193,96,.16);padding:30px;text-align:center;border:1px solid rgba(7,193,96,.12)}.badge{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:16px;background:#07c160;color:#fff;font-weight:800;font-size:25px;margin-bottom:16px}.title{font-size:22px;font-weight:800;margin:0 0 8px;color:#15251d}.sub{color:#5d6f66;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #d7f5e3;border-radius:18px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f3fbf6;border-radius:14px;padding:14px 16px;color:#2f4439;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#6b7f74}.status{margin-top:16px;color:#07c160;font-weight:700}.hint{margin-top:14px;color:#8aa096;font-size:13px}
   </style>
 </head>
 <body>
   <div class="wrap"><main class="card">
-    <h1 class="title">请扫码完成支付</h1>
-    <p class="sub">支付成功后页面会自动跳转</p>
+    <div class="badge">微</div>
+    <h1 class="title">微信扫码支付</h1>
+    <p class="sub">请使用微信扫一扫完成支付</p>
     ${imageUrl ? `<img class="qr" src="${escapeHtml(imageUrl)}" alt="支付二维码">` : ""}
     <div class="meta">
       <div class="row"><span>商品</span><strong>${escapeHtml(order.name)}</strong></div>
       <div class="row"><span>金额</span><strong>${escapeHtml(order.money)} 元</strong></div>
       <div class="row"><span>订单号</span><strong>${escapeHtml(order.outTradeNo)}</strong></div>
     </div>
-    <div id="status" class="status">等待支付结果...</div>
+    <div id="status" class="status">等待微信支付结果...</div>
     <div class="hint">请不要关闭此页面</div>
   </main></div>
   <script>
