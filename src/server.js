@@ -10,8 +10,6 @@ app.use(express.json());
 const config = {
   port: numberEnv("PORT", 3000),
   publicBaseUrl: requiredEnv("PUBLIC_BASE_URL").replace(/\/$/, ""),
-  epayPid: requiredEnv("EPAY_PID"),
-  epayKey: requiredEnv("EPAY_KEY"),
   lantuApiBase: env("LANTU_API_BASE", "https://api.ltzf.cn").replace(/\/$/, ""),
   lantuMchId: requiredEnv("LANTU_MCH_ID"),
   lantuKey: requiredEnv("LANTU_KEY"),
@@ -32,7 +30,7 @@ app.all("/submit.php", async (req, res) => {
     const input = collectParams(req);
     assertRequired(input, ["pid", "type", "out_trade_no", "notify_url", "return_url", "name", "money", "sign"]);
 
-    if (input.pid !== config.epayPid) {
+    if (input.pid !== config.lantuMchId) {
       return sendEpayError(res, "pid error");
     }
     if (!verifyEpaySign(input)) {
@@ -131,7 +129,7 @@ app.all("/api.php", (req, res) => {
   if (input.act !== "order") {
     return res.json({ code: -1, msg: "unsupported act" });
   }
-  if (input.pid !== config.epayPid || !verifyEpaySign(input)) {
+  if (input.pid !== config.lantuMchId || !verifyEpaySign(input)) {
     return res.json({ code: -1, msg: "sign error" });
   }
 
@@ -204,7 +202,7 @@ function epaySign(params) {
     .sort(([a], [b]) => asciiCompare(a, b))
     .map(([name, value]) => `${name}=${value}`)
     .join("&");
-  return crypto.createHash("md5").update(`${source}${config.epayKey}`, "utf8").digest("hex").toLowerCase();
+  return crypto.createHash("md5").update(`${source}${config.lantuKey}`, "utf8").digest("hex").toLowerCase();
 }
 
 function verifyEpaySign(params) {
@@ -266,7 +264,7 @@ function buildLantuCreatePayload(input, channel) {
 
 function buildEpayNotify(input, order, paid) {
   const payload = {
-    pid: config.epayPid,
+    pid: config.lantuMchId,
     trade_no: input.order_no || order.tradeNo || order.outTradeNo || input.out_trade_no,
     out_trade_no: input.out_trade_no || order.outTradeNo,
     type: order.type || lantuChannelToEpay(input.pay_channel),
