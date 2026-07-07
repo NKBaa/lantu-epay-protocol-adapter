@@ -35,8 +35,9 @@ app.all("/submit.php", async (req, res) => {
       return sendEpayError(res, lantuResp.msg || "lantu create order failed");
     }
 
-    const payUrl = extractPayUrl(lantuResp.data);
-    orders.set(input.out_trade_no, {
+    const payment = extractPaymentUrls(lantuResp.data);
+    const statusToken = crypto.randomBytes(16).toString("hex");
+    const order = {
       outTradeNo: input.out_trade_no,
       pid: input.pid,
       tradeNo: "",
@@ -45,23 +46,54 @@ app.all("/submit.php", async (req, res) => {
       money: input.money,
       notifyUrl: input.notify_url,
       returnUrl: input.return_url,
+      statusToken,
       status: 0,
       createdAt: new Date().toISOString(),
+      payment,
       lantu: lantuResp,
-    });
+    };
+    orders.set(input.out_trade_no, order);
 
-    if (!payUrl) {
+    if (!payment.imageUrl && !payment.payUrl) {
       return res.json({ code: 1, msg: "lantu response missing pay url", raw: lantuResp });
     }
 
+    const checkoutUrl = `${config.publicBaseUrl}/checkout?out_trade_no=${encodeURIComponent(input.out_trade_no)}&token=${statusToken}`;
     if (wantsJson(req)) {
-      return res.json({ code: 1, msg: "success", trade_no: input.out_trade_no, payurl: payUrl, qrcode: payUrl, url: payUrl });
+      return res.json({ code: 1, msg: "success", trade_no: input.out_trade_no, payurl: checkoutUrl, qrcode: payment.imageUrl || payment.payUrl, url: checkoutUrl });
     }
 
-    return res.type("html").send(renderRedirectPage(payUrl));
+    return res.type("html").send(renderCheckoutPage(order));
   } catch (error) {
     return sendEpayError(res, error.message);
   }
+});
+
+app.get("/checkout", (req, res) => {
+  const input = collectParams(req);
+  const order = input.out_trade_no ? orders.get(input.out_trade_no) : undefined;
+  if (!order || input.token !== order.statusToken) {
+    return res.status(404).type("text/plain").send("order not found");
+  }
+
+  return res.type("html").send(renderCheckoutPage(order));
+});
+
+app.get("/checkout/status", (req, res) => {
+  const input = collectParams(req);
+  const order = input.out_trade_no ? orders.get(input.out_trade_no) : undefined;
+  if (!order || input.token !== order.statusToken) {
+    return res.status(404).json({ code: -1, msg: "order not found" });
+  }
+
+  const paid = order.status === 1;
+  return res.json({
+    code: 1,
+    paid,
+    status: order.status,
+    out_trade_no: order.outTradeNo,
+    redirect_url: paid ? buildReturnUrl(order) : "",
+  });
 });
 
 app.post("/lantu/notify", async (req, res) => {
@@ -88,6 +120,7 @@ app.post("/lantu/notify", async (req, res) => {
     orders.set(input.out_trade_no, {
       ...order,
       outTradeNo: input.out_trade_no,
+      pid: order.pid || input.mch_id,
       tradeNo: input.order_no,
       status: paid ? 1 : 0,
       paidAt: input.success_time || new Date().toISOString(),
@@ -283,10 +316,13 @@ async function postForm(url, params, expectJson = true) {
   }
 }
 
-function extractPayUrl(data) {
-  if (typeof data === "string") return data;
-  if (!data || typeof data !== "object") return "";
-  return data.payurl || data.url || data.QRcode_url || data.code_url || "";
+function extractPaymentUrls(data) {
+  if (typeof data === "string") return { payUrl: data, imageUrl: data };
+  if (!data || typeof data !== "object") return { payUrl: "", imageUrl: "" };
+  return {
+    payUrl: data.payurl || data.url || data.code_url || data.QRcode_url || "",
+    imageUrl: data.QRcode_url || data.qrcode || data.qr_code || data.payurl || data.url || "",
+  };
 }
 
 function encodeAttach(value) {
@@ -318,9 +354,58 @@ function sendEpayError(res, msg) {
   return res.status(400).json({ code: -1, msg });
 }
 
-function renderRedirectPage(payUrl) {
-  const safeUrl = escapeHtml(payUrl);
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Redirecting</title></head><body><p>Redirecting to payment...</p><script>location.replace(${JSON.stringify(payUrl)});</script><a href="${safeUrl}">Continue</a></body></html>`;
+function buildReturnUrl(order) {
+  if (!order.returnUrl) return "";
+  const payload = buildEpayNotify({ order_no: order.tradeNo, out_trade_no: order.outTradeNo, total_fee: order.money }, order, order.status === 1);
+  return appendQuery(order.returnUrl, payload);
+}
+
+function renderCheckoutPage(order) {
+  const statusUrl = `${config.publicBaseUrl}/checkout/status?out_trade_no=${encodeURIComponent(order.outTradeNo)}&token=${order.statusToken}`;
+  const imageUrl = order.payment.imageUrl || order.payment.payUrl;
+  const payUrl = order.payment.payUrl || imageUrl;
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>支付收银台</title>
+  <style>
+    body{margin:0;background:#f6f7fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(15,23,42,.12);padding:28px;text-align:center}.title{font-size:22px;font-weight:700;margin:0 0 8px}.sub{color:#64748b;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#64748b}.status{margin-top:16px;color:#2563eb;font-weight:600}.hint{margin-top:14px;color:#94a3b8;font-size:13px}.btn{display:inline-block;margin-top:14px;color:#fff;background:#2563eb;text-decoration:none;border-radius:10px;padding:10px 14px}
+  </style>
+</head>
+<body>
+  <div class="wrap"><main class="card">
+    <h1 class="title">请扫码完成支付</h1>
+    <p class="sub">支付成功后页面会自动跳转</p>
+    ${imageUrl ? `<img class="qr" src="${escapeHtml(imageUrl)}" alt="支付二维码">` : ""}
+    <div class="meta">
+      <div class="row"><span>商品</span><strong>${escapeHtml(order.name)}</strong></div>
+      <div class="row"><span>金额</span><strong>${escapeHtml(order.money)} 元</strong></div>
+      <div class="row"><span>订单号</span><strong>${escapeHtml(order.outTradeNo)}</strong></div>
+    </div>
+    ${payUrl ? `<a class="btn" href="${escapeHtml(payUrl)}" target="_blank" rel="noreferrer">打不开二维码？点此继续支付</a>` : ""}
+    <div id="status" class="status">等待支付结果...</div>
+    <div class="hint">请不要关闭此页面</div>
+  </main></div>
+  <script>
+    const statusEl = document.getElementById('status');
+    async function poll(){
+      try{
+        const res = await fetch(${JSON.stringify(statusUrl)}, { cache: 'no-store' });
+        const data = await res.json();
+        if(data.paid){
+          statusEl.textContent = '支付成功，正在返回...';
+          if(data.redirect_url){ location.replace(data.redirect_url); }
+          return;
+        }
+      }catch(e){}
+      setTimeout(poll, 2000);
+    }
+    poll();
+  </script>
+</body>
+</html>`;
 }
 
 function escapeHtml(value) {
