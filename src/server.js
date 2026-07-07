@@ -130,7 +130,10 @@ app.post("/lantu/notify", async (req, res) => {
     orders.set(input.out_trade_no, nextOrder);
 
     const epayNotify = buildEpayNotify(input, nextOrder, paid);
-    notifyNewapi(notifyUrl, epayNotify);
+    const downstream = await postForm(notifyUrl, epayNotify, false);
+    if (String(downstream).trim().toLowerCase() !== "success") {
+      return res.status(502).type("text/plain").send("FAIL");
+    }
 
     return res.type("text/plain").send("SUCCESS");
   } catch (_error) {
@@ -409,14 +412,6 @@ function renderCheckoutPage(order) {
   </script>
 </body>
 </html>`;
-}
-
-async function notifyNewapi(notifyUrl, payload) {
-  try {
-    await postForm(notifyUrl, payload, false);
-  } catch (error) {
-    console.error(`newapi notify failed: ${error.message}`);
-  }
 }
 
 function escapeHtml(value) {
