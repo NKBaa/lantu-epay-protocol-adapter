@@ -8,7 +8,6 @@
 - `POST /lantu/notify`：蓝兔支付异步通知入口，校验蓝兔签名后转发为易支付通知。
 - `GET /return`：易支付同步跳转入口。
 - `GET|POST /api.php?act=order&pid=...&out_trade_no=...&sign=...&sign_type=MD5`：订单查询。
-- `GET /healthz`：健康检查。
 
 ## Docker Compose 部署
 
@@ -35,11 +34,10 @@ HOST_PORT=18080
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
-启动后检查：
+启动后查看状态：
 
 ```bash
 docker compose ps
-curl http://127.0.0.1:18080/healthz
 ```
 
 更新代码后重新构建：

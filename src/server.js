@@ -21,10 +21,6 @@ const config = {
 
 const orders = new Map();
 
-app.get("/healthz", (_req, res) => {
-  res.type("text/plain").send("ok");
-});
-
 app.all("/submit.php", async (req, res) => {
   try {
     const input = collectParams(req);
