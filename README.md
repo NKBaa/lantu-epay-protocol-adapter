@@ -24,7 +24,7 @@ docker compose up -d --build
 environment:
   PORT: "18080"
   PUBLIC_BASE_URL: "https://pay-adapter.example.com"
-  LANTU_MCH_ID: "1230000109"
+  LANTU_API_BASE: "https://api.ltzf.cn"
   LANTU_KEY: "change_me_lantu_key"
 ```
 
@@ -65,7 +65,7 @@ docker compose down
 ```bash
 cd lantu-epay-protocol-adapter
 docker build -t lantu-epay-protocol-adapter:latest .
-docker run -d --name lantu-epay-protocol-adapter --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_MCH_ID=1230000109 -e LANTU_KEY=change_me_lantu_key lantu-epay-protocol-adapter:latest
+docker run -d --name lantu-epay-protocol-adapter --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_API_BASE=https://api.ltzf.cn -e LANTU_KEY=change_me_lantu_key lantu-epay-protocol-adapter:latest
 ```
 
 ## GitHub 镜像构建
@@ -95,8 +95,8 @@ npm start
 ## newapi 配置
 
 - 支付类型选择易支付/ePay。
-- 商户号填写蓝兔支付商户号，也就是 Compose `environment` 中的 `LANTU_MCH_ID`。
-- 商户密钥填写蓝兔支付密钥，也就是 Compose `environment` 中的 `LANTU_KEY`。
+- 商户号填写蓝兔支付商户号，转换层会把易支付 `pid` 直接透传成蓝兔 `mch_id`。
+- 商户密钥填写蓝兔支付密钥，并且 Compose `environment` 中的 `LANTU_KEY` 也要填同一个值，用于转换层验签和生成蓝兔签名。
 - 支付网关填写转换层公网地址，例如 `https://pay-adapter.example.com/`。
 - 除网关地址外，不需要额外维护一套 ePay 商户号或密钥。
 - 如果 Docker 前面有 Nginx/Caddy，反代到 `127.0.0.1:18080`，或你在 `PORT` 中配置的端口。

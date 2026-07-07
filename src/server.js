@@ -11,13 +11,10 @@ const config = {
   port: numberEnv("PORT", 18080),
   publicBaseUrl: requiredEnv("PUBLIC_BASE_URL").replace(/\/$/, ""),
   lantuApiBase: env("LANTU_API_BASE", "https://api.ltzf.cn").replace(/\/$/, ""),
-  lantuMchId: requiredEnv("LANTU_MCH_ID"),
   lantuKey: requiredEnv("LANTU_KEY"),
-  wxpayMode: env("LANTU_WXPAY_MODE", "native"),
-  alipayMode: env("LANTU_ALIPAY_MODE", "native"),
-  developerAppid: env("LANTU_DEVELOPER_APPID", ""),
-  httpTimeoutMs: numberEnv("HTTP_TIMEOUT_MS", 15000),
 };
+
+const HTTP_TIMEOUT_MS = 15000;
 
 const orders = new Map();
 
@@ -26,9 +23,6 @@ app.all("/submit.php", async (req, res) => {
     const input = collectParams(req);
     assertRequired(input, ["pid", "type", "out_trade_no", "notify_url", "return_url", "name", "money", "sign"]);
 
-    if (input.pid !== config.lantuMchId) {
-      return sendEpayError(res, "pid error");
-    }
     if (!verifyEpaySign(input)) {
       return sendEpayError(res, "sign error");
     }
@@ -44,6 +38,7 @@ app.all("/submit.php", async (req, res) => {
     const payUrl = extractPayUrl(lantuResp.data);
     orders.set(input.out_trade_no, {
       outTradeNo: input.out_trade_no,
+      pid: input.pid,
       tradeNo: "",
       type: input.type,
       name: input.name,
@@ -73,9 +68,6 @@ app.post("/lantu/notify", async (req, res) => {
   const input = collectParams(req);
   try {
     assertRequired(input, ["code", "timestamp", "mch_id", "order_no", "out_trade_no", "pay_no", "total_fee", "sign"]);
-    if (input.mch_id !== config.lantuMchId) {
-      return res.status(400).type("text/plain").send("FAIL");
-    }
     if (!verifyLantuSign(input)) {
       return res.status(400).type("text/plain").send("FAIL");
     }
@@ -125,7 +117,7 @@ app.all("/api.php", (req, res) => {
   if (input.act !== "order") {
     return res.json({ code: -1, msg: "unsupported act" });
   }
-  if (input.pid !== config.lantuMchId || !verifyEpaySign(input)) {
+  if (!verifyEpaySign(input)) {
     return res.json({ code: -1, msg: "sign error" });
   }
 
@@ -227,32 +219,25 @@ function timingSafeEqual(a, b) {
 
 function mapChannel(type) {
   if (type === "wxpay") {
-    return { payChannel: "wxpay", tradeType: config.wxpayMode, path: `/api/wxpay/${config.wxpayMode}` };
+    return { payChannel: "wxpay", path: "/api/wxpay/native" };
   }
   if (type === "alipay") {
-    return { payChannel: "alipay", tradeType: config.alipayMode, path: `/api/alipay/${config.alipayMode}` };
+    return { payChannel: "alipay", path: "/api/alipay/native" };
   }
   throw new Error(`unsupported pay type: ${type}`);
 }
 
 function buildLantuCreatePayload(input, channel) {
   const payload = {
-    mch_id: config.lantuMchId,
+    mch_id: input.pid,
     out_trade_no: input.out_trade_no,
     total_fee: input.money,
     body: input.name,
     timestamp: Math.floor(Date.now() / 1000).toString(),
     notify_url: `${config.publicBaseUrl}/lantu/notify`,
     return_url: input.return_url || `${config.publicBaseUrl}/return`,
-    attach: encodeAttach({ notifyUrl: input.notify_url, returnUrl: input.return_url, type: input.type, name: input.name, money: input.money }),
+    attach: encodeAttach({ pid: input.pid, notifyUrl: input.notify_url, returnUrl: input.return_url, type: input.type, name: input.name, money: input.money }),
   };
-
-  if (config.developerAppid) {
-    payload.developer_appid = config.developerAppid;
-  }
-  if (channel.payChannel === "wxpay" && channel.tradeType === "jump_h5" && input.return_url) {
-    payload.quit_url = input.return_url;
-  }
 
   payload.sign = sign(pick(payload, ["mch_id", "out_trade_no", "total_fee", "body", "timestamp", "notify_url"]), config.lantuKey);
   return payload;
@@ -260,7 +245,7 @@ function buildLantuCreatePayload(input, channel) {
 
 function buildEpayNotify(input, order, paid) {
   const payload = {
-    pid: config.lantuMchId,
+    pid: order.pid || input.mch_id,
     trade_no: input.order_no || order.tradeNo || order.outTradeNo || input.out_trade_no,
     out_trade_no: input.out_trade_no || order.outTradeNo,
     type: order.type || lantuChannelToEpay(input.pay_channel),
@@ -280,7 +265,7 @@ function lantuChannelToEpay(channel) {
 
 async function postForm(url, params, expectJson = true) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.httpTimeoutMs);
+  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       method: "POST",
