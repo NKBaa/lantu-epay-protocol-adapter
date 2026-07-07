@@ -15,18 +15,20 @@
 
 ```bash
 cd lantu-epay-adapter-v2
-cp .env.example .env
 docker compose up -d --build
 ```
 
-`.env` 中的端口配置：
+配置直接写在 `docker-compose.yml` 的 `environment` 里，部署前修改这些值：
 
-```env
-PORT=18080
-HOST_PORT=18080
+```yaml
+environment:
+  PORT: "18080"
+  PUBLIC_BASE_URL: "https://pay-adapter.example.com"
+  LANTU_MCH_ID: "1230000109"
+  LANTU_KEY: "change_me_lantu_key"
 ```
 
-`PORT` 是容器内服务监听端口，`HOST_PORT` 是宿主机开放端口。
+Compose 默认使用 `network_mode: host`，`PORT` 就是宿主机监听端口，不需要 `ports` 映射。
 
 也可以直接使用 GitHub Container Registry 镜像：
 
@@ -63,7 +65,7 @@ docker compose down
 ```bash
 cd lantu-epay-adapter-v2
 docker build -t lantu-epay-adapter-v2:latest .
-docker run -d --name lantu-epay-adapter-v2 --restart unless-stopped --env-file .env -p 18080:18080 lantu-epay-adapter-v2:latest
+docker run -d --name lantu-epay-adapter-v2 --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_MCH_ID=1230000109 -e LANTU_KEY=change_me_lantu_key lantu-epay-adapter-v2:latest
 ```
 
 ## GitHub 镜像构建
@@ -93,11 +95,11 @@ npm start
 ## newapi 配置
 
 - 支付类型选择易支付/ePay。
-- 商户号填写蓝兔支付商户号，也就是 `.env` 中的 `LANTU_MCH_ID`。
-- 商户密钥填写蓝兔支付密钥，也就是 `.env` 中的 `LANTU_KEY`。
+- 商户号填写蓝兔支付商户号，也就是 Compose `environment` 中的 `LANTU_MCH_ID`。
+- 商户密钥填写蓝兔支付密钥，也就是 Compose `environment` 中的 `LANTU_KEY`。
 - 支付网关填写转换层公网地址，例如 `https://pay-adapter.example.com/`。
 - 除网关地址外，不需要额外维护一套 ePay 商户号或密钥。
-- 如果 Docker 前面有 Nginx/Caddy，反代到宿主机开放端口，默认是 `18080`。
+- 如果 Docker 前面有 Nginx/Caddy，反代到 `127.0.0.1:18080`，或你在 `PORT` 中配置的端口。
 
 ## 回调地址
 
