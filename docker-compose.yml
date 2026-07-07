@@ -1,8 +1,8 @@
 services:
-  lantu-epay-adapter:
+  lantu-epay-adapter-v2:
     build: .
-    image: lantu-epay-adapter:latest
-    container_name: lantu-epay-adapter
+    image: lantu-epay-adapter-v2:latest
+    container_name: lantu-epay-adapter-v2
     restart: unless-stopped
     env_file:
       - .env

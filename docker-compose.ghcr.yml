@@ -1,7 +1,7 @@
 services:
-  lantu-epay-adapter:
-    image: ghcr.io/nkbaa/lantu-epay-adapter:latest
-    container_name: lantu-epay-adapter
+  lantu-epay-adapter-v2:
+    image: ghcr.io/nkbaa/lantu-epay-adapter-v2:latest
+    container_name: lantu-epay-adapter-v2
     restart: unless-stopped
     env_file:
       - .env

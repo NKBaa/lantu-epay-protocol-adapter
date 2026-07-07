@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/nkbaa/lantu-epay-adapter
+  IMAGE_NAME: ghcr.io/nkbaa/lantu-epay-adapter-v2
 
 jobs:
   build:

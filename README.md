@@ -15,7 +15,7 @@
 默认本地构建镜像：
 
 ```bash
-cd lantu-epay-adapter
+cd lantu-epay-adapter-v2
 cp .env.example .env
 docker compose up -d --build
 ```
@@ -63,9 +63,9 @@ docker compose down
 ## Docker 手动部署
 
 ```bash
-cd lantu-epay-adapter
-docker build -t lantu-epay-adapter:latest .
-docker run -d --name lantu-epay-adapter --restart unless-stopped --env-file .env -p 18080:18080 lantu-epay-adapter:latest
+cd lantu-epay-adapter-v2
+docker build -t lantu-epay-adapter-v2:latest .
+docker run -d --name lantu-epay-adapter-v2 --restart unless-stopped --env-file .env -p 18080:18080 lantu-epay-adapter-v2:latest
 ```
 
 ## GitHub 镜像构建
@@ -73,20 +73,20 @@ docker run -d --name lantu-epay-adapter --restart unless-stopped --env-file .env
 推送到 `main` 或创建 `v*` 标签时，GitHub Actions 会自动构建并推送镜像到：
 
 ```text
-ghcr.io/nkbaa/lantu-epay-adapter:latest
+ghcr.io/nkbaa/lantu-epay-adapter-v2:latest
 ```
 
 同时会生成分支、标签和提交 SHA 镜像标签，例如：
 
 ```text
-ghcr.io/nkbaa/lantu-epay-adapter:main
-ghcr.io/nkbaa/lantu-epay-adapter:sha-xxxxxxx
+ghcr.io/nkbaa/lantu-epay-adapter-v2:main
+ghcr.io/nkbaa/lantu-epay-adapter-v2:sha-xxxxxxx
 ```
 
 ## 裸机开发启动
 
 ```bash
-cd lantu-epay-adapter
+cd lantu-epay-adapter-v2
 npm install
 cp .env.example .env
 npm start
