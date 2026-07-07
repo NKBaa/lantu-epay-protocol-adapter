@@ -12,10 +12,18 @@
 
 ## Docker Compose 部署
 
+默认本地构建镜像：
+
 ```bash
 cd lantu-epay-adapter
 cp .env.example .env
 docker compose up -d --build
+```
+
+也可以直接使用 GitHub Container Registry 镜像：
+
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
 ```
 
 启动后检查：
@@ -49,6 +57,21 @@ docker compose down
 cd lantu-epay-adapter
 docker build -t lantu-epay-adapter:latest .
 docker run -d --name lantu-epay-adapter --restart unless-stopped --env-file .env -p 3000:3000 lantu-epay-adapter:latest
+```
+
+## GitHub 镜像构建
+
+推送到 `main` 或创建 `v*` 标签时，GitHub Actions 会自动构建并推送镜像到：
+
+```text
+ghcr.io/nkbaa/lantu-epay-adapter:latest
+```
+
+同时会生成分支、标签和提交 SHA 镜像标签，例如：
+
+```text
+ghcr.io/nkbaa/lantu-epay-adapter:main
+ghcr.io/nkbaa/lantu-epay-adapter:sha-xxxxxxx
 ```
 
 ## 裸机开发启动
