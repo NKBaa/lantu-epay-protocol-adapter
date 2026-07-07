@@ -8,7 +8,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 const config = {
-  port: numberEnv("PORT", 3000),
+  port: numberEnv("PORT", 18080),
   publicBaseUrl: requiredEnv("PUBLIC_BASE_URL").replace(/\/$/, ""),
   lantuApiBase: env("LANTU_API_BASE", "https://api.ltzf.cn").replace(/\/$/, ""),
   lantuMchId: requiredEnv("LANTU_MCH_ID"),

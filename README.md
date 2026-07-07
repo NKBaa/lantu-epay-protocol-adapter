@@ -20,6 +20,15 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+`.env` 中的端口配置：
+
+```env
+PORT=18080
+HOST_PORT=18080
+```
+
+`PORT` 是容器内服务监听端口，`HOST_PORT` 是宿主机开放端口。
+
 也可以直接使用 GitHub Container Registry 镜像：
 
 ```bash
@@ -30,7 +39,7 @@ docker compose -f docker-compose.ghcr.yml up -d
 
 ```bash
 docker compose ps
-curl http://127.0.0.1:3000/healthz
+curl http://127.0.0.1:18080/healthz
 ```
 
 更新代码后重新构建：
@@ -56,7 +65,7 @@ docker compose down
 ```bash
 cd lantu-epay-adapter
 docker build -t lantu-epay-adapter:latest .
-docker run -d --name lantu-epay-adapter --restart unless-stopped --env-file .env -p 3000:3000 lantu-epay-adapter:latest
+docker run -d --name lantu-epay-adapter --restart unless-stopped --env-file .env -p 18080:18080 lantu-epay-adapter:latest
 ```
 
 ## GitHub 镜像构建
@@ -90,7 +99,7 @@ npm start
 - 商户密钥填写蓝兔支付密钥，也就是 `.env` 中的 `LANTU_KEY`。
 - 支付网关填写转换层公网地址，例如 `https://pay-adapter.example.com/`。
 - 除网关地址外，不需要额外维护一套 ePay 商户号或密钥。
-- 如果 Docker 前面有 Nginx/Caddy，反代到容器端口 `3000`。
+- 如果 Docker 前面有 Nginx/Caddy，反代到宿主机开放端口，默认是 `18080`。
 
 ## 回调地址
 
