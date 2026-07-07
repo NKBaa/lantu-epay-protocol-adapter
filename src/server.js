@@ -377,12 +377,11 @@ function renderCheckoutPage(order) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>微信支付收银台</title>
   <style>
-    body{margin:0;background:linear-gradient(180deg,#e9fff2 0%,#f6f8f7 42%,#f6f8f7 100%);color:#1f2d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:22px;box-shadow:0 18px 60px rgba(7,193,96,.16);padding:30px;text-align:center;border:1px solid rgba(7,193,96,.12)}.badge{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:16px;background:#07c160;color:#fff;font-weight:800;font-size:25px;margin-bottom:16px}.title{font-size:22px;font-weight:800;margin:0 0 8px;color:#15251d}.sub{color:#5d6f66;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #d7f5e3;border-radius:18px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f3fbf6;border-radius:14px;padding:14px 16px;color:#2f4439;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#6b7f74}.status{margin-top:16px;color:#07c160;font-weight:700}.hint{margin-top:14px;color:#8aa096;font-size:13px}
+    body{margin:0;background:linear-gradient(180deg,#e9fff2 0%,#f6f8f7 42%,#f6f8f7 100%);color:#1f2d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(420px,100%);background:#fff;border-radius:22px;box-shadow:0 18px 60px rgba(7,193,96,.16);padding:30px;text-align:center;border:1px solid rgba(7,193,96,.12)}.title{font-size:22px;font-weight:800;margin:0 0 8px;color:#15251d}.sub{color:#5d6f66;margin:0 0 22px}.qr{width:240px;height:240px;object-fit:contain;border:1px solid #d7f5e3;border-radius:18px;padding:12px;background:#fff}.meta{margin:20px 0;text-align:left;background:#f3fbf6;border-radius:14px;padding:14px 16px;color:#2f4439;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.row span:first-child{color:#6b7f74}.status{margin-top:16px;color:#07c160;font-weight:700}.hint{margin-top:14px;color:#8aa096;font-size:13px}
   </style>
 </head>
 <body>
   <div class="wrap"><main class="card">
-    <div class="badge">微</div>
     <h1 class="title">微信扫码支付</h1>
     <p class="sub">请使用微信扫一扫完成支付</p>
     ${imageUrl ? `<img class="qr" src="${escapeHtml(imageUrl)}" alt="支付二维码">` : ""}
