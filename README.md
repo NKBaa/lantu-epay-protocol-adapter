@@ -14,7 +14,7 @@
 默认本地构建镜像：
 
 ```bash
-cd lantu-epay-adapter-v2
+cd lantu-epay-protocol-adapter
 docker compose up -d --build
 ```
 
@@ -63,9 +63,9 @@ docker compose down
 ## Docker 手动部署
 
 ```bash
-cd lantu-epay-adapter-v2
-docker build -t lantu-epay-adapter-v2:latest .
-docker run -d --name lantu-epay-adapter-v2 --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_MCH_ID=1230000109 -e LANTU_KEY=change_me_lantu_key lantu-epay-adapter-v2:latest
+cd lantu-epay-protocol-adapter
+docker build -t lantu-epay-protocol-adapter:latest .
+docker run -d --name lantu-epay-protocol-adapter --restart unless-stopped --network host -e PORT=18080 -e PUBLIC_BASE_URL=https://pay-adapter.example.com -e LANTU_MCH_ID=1230000109 -e LANTU_KEY=change_me_lantu_key lantu-epay-protocol-adapter:latest
 ```
 
 ## GitHub 镜像构建
@@ -73,20 +73,20 @@ docker run -d --name lantu-epay-adapter-v2 --restart unless-stopped --network ho
 推送到 `main` 或创建 `v*` 标签时，GitHub Actions 会自动构建并推送镜像到：
 
 ```text
-ghcr.io/nkbaa/lantu-epay-adapter-v2:latest
+ghcr.io/nkbaa/lantu-epay-protocol-adapter:latest
 ```
 
 同时会生成分支、标签和提交 SHA 镜像标签，例如：
 
 ```text
-ghcr.io/nkbaa/lantu-epay-adapter-v2:main
-ghcr.io/nkbaa/lantu-epay-adapter-v2:sha-xxxxxxx
+ghcr.io/nkbaa/lantu-epay-protocol-adapter:main
+ghcr.io/nkbaa/lantu-epay-protocol-adapter:sha-xxxxxxx
 ```
 
 ## 裸机开发启动
 
 ```bash
-cd lantu-epay-adapter-v2
+cd lantu-epay-protocol-adapter
 npm install
 cp .env.example .env
 npm start

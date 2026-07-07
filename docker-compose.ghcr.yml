@@ -1,7 +1,7 @@
 services:
-  lantu-epay-adapter-v2:
-    image: ghcr.io/nkbaa/lantu-epay-adapter-v2:latest
-    container_name: lantu-epay-adapter-v2
+  lantu-epay-protocol-adapter:
+    image: ghcr.io/nkbaa/lantu-epay-protocol-adapter:latest
+    container_name: lantu-epay-protocol-adapter
     restart: unless-stopped
     network_mode: host
     environment:
